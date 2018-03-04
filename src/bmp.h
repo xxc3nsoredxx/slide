@@ -9,11 +9,17 @@ const char *ALLOC_ERR_MSG = "Unable to allocate memory!\n";
 const char *OPEN_ERR_MSG = "Unable to open file!\n";
 const char *READ_ERR_MSG = "Unable to read from file!\n";
 
+struct pixel {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+};
+
 struct image {
     int width;
     int height;
     int bpp;
-    char *data;
+    struct pixel *data;
 };
 
 #endif

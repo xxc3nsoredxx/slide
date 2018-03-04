@@ -50,12 +50,25 @@ void read_bmp (int fd) {
     uint8_t n_palette [4];
     uint8_t n_important [4];
     uint8_t bot_top;
+    /* The color palette (if used) */
+    unsigned int dib_end;
+    unsigned int palette_bytes;
+    struct pixel *palette;
+    /* The pixel data read from file */
+    uint8_t *data;
+    /* The actual pixels of the image */
+    struct pixel *pixels;
+    unsigned int row;
+    unsigned int col;
+    int pad;
+    uint8_t *temp;
+    struct pixel temp_pixel;
 
     /* Attempt to read the BMP header */
     nread = read (fd, bmp_header, HEADER_SIZE);
     if (nread != HEADER_SIZE) {
         ERR(READ_ERR_MSG);
-        return;
+        goto cleanup;
     }
 
     /* Get the magic bytes */
@@ -80,7 +93,7 @@ void read_bmp (int fd) {
     nread = read (fd, dib_size, 4);
     if (nread != 4) {
         ERR(READ_ERR_MSG);
-        return;
+        goto cleanup;
     }
 
     /* Reverse the endianness if needed */
@@ -92,13 +105,12 @@ void read_bmp (int fd) {
     dib_header = calloc (*(uint32_t *)dib_size - 4, 1);
     if (!dib_header) {
         ERR(ALLOC_ERR_MSG);
-        return;
+        goto cleanup;
     }
     nread = read (fd, dib_header, *(uint32_t *)dib_size - 4);
     if (nread != *(uint32_t *)dib_size - 4) {
         ERR(READ_ERR_MSG);
-        free (dib_header);
-        return;
+        goto cleanup;
     }
 
     /* Get the width and height */
@@ -147,7 +159,77 @@ void read_bmp (int fd) {
      */
     bot_top = *(int32_t *)height > 0;
 
-    free (dib_header);
+    /* Get the palette information */
+    if (*(uint32_t *)n_palette || *(uint16_t *)bpp <= 8) {
+        dib_end = 14 + *(uint32_t *)dib_size;
+        palette_bytes = *(uint32_t *)data_off - dib_end;
+        palette = calloc (palette_bytes / 4, sizeof (struct pixel));
+        if (!palette) {
+            ERR(ALLOC_ERR_MSG);
+            goto cleanup;
+        }
+        nread = read (fd, palette, palette_bytes);
+        if (nread != palette_bytes) {
+            ERR(READ_ERR_MSG);
+            goto cleanup;
+        }
+    }
+
+    /* Read the pixel data from the file */
+    data = calloc (*(uint32_t *)data_size, 1);
+    if (!data) {
+        ERR(ALLOC_ERR_MSG);
+        goto cleanup;
+    }
+    nread = read (fd, data, *(uint32_t *)data_size);
+    if (nread != *(uint32_t *)data_size) {
+        ERR(READ_ERR_MSG);
+        goto cleanup;
+    }
+
+    pixels = calloc (*(uint32_t *)width * *(uint32_t *) height,
+                     sizeof (struct pixel));
+    if (!pixels) {
+        ERR(ALLOC_ERR_MSG);
+        goto cleanup;
+    }
+    /* Zero bytes padded to the end of each row for 4-byte allignment */
+    pad = (*(uint32_t *)width * *(uint16_t *)bpp / 8) % 4;
+    /* Don't deal with palette just yet */
+    /* --------CHANGE THIS, TEMPORARY ONLY FOR 24bpp!!!!-------- */
+    temp = calloc (3, 1);
+    if (!temp) {
+        ERR(ALLOC_ERR_MSG);
+        goto cleanup;
+    }
+    for (row = 0; row < *(uint32_t *)height; row++) {
+        for (col = 0; col < *(uint32_t *)width; col++) {
+            memcpy (temp,
+               (data + (row * 3 * *(uint32_t *)width) + (row * pad) + (col * 3)), 3);
+            temp_pixel.b = *temp;
+            temp_pixel.g = *(temp + 1);
+            temp_pixel.r = *(temp + 2);
+            (pixels + ((*(uint32_t *)height - row - 1) * *(uint32_t *)width) + col)->r = temp_pixel.r;
+            (pixels + ((*(uint32_t *)height - row - 1) * *(uint32_t *)width) + col)->g = temp_pixel.g;
+            (pixels + ((*(uint32_t *)height - row - 1) * *(uint32_t *)width) + col)->b = temp_pixel.b;
+        }
+    }
+
+    for (row = 0; row < *(uint32_t *)height; row++) {
+        for (col = 0; col < *(uint32_t *)width; col++) {
+            printf ("%02X%02X%02X ",
+                    (pixels + (row * *(uint32_t *)width) + col)->r,
+                    (pixels + (row * *(uint32_t *)width) + col)->g,
+                    (pixels + (row * *(uint32_t *)width) + col)->b);
+        }
+        printf ("\n");
+    }
+
+cleanup:
+    if (temp)       free (temp);
+    if (pixels)     free (pixels);
+    if (palette)    free (palette);
+    if (dib_header) free (dib_header);
 }
 
 int main () {
