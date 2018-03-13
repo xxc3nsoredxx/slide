@@ -16,9 +16,9 @@ struct pixel {
 };
 
 struct image {
-    int width;
-    int height;
-    int bpp;
+    uint32_t width;
+    uint32_t height;
+    uint16_t bpp;
     struct pixel *data;
 };
 

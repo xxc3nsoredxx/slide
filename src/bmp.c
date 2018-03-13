@@ -29,7 +29,11 @@ void rev (uint8_t *arr, const unsigned int len) {
     }
 }
 
-void read_bmp (int fd) {
+/* Future me or anyone that reads this:
+ * Sorry for all the ugly typecating that is about to come!
+ */
+int read_bmp (int fd, struct image* picture) {
+    int ret;
     size_t nread;
     uint8_t reverse_endian;
     uint8_t bmp_header [HEADER_SIZE];
@@ -215,30 +219,49 @@ void read_bmp (int fd) {
         }
     }
 
-    for (row = 0; row < *(uint32_t *)height; row++) {
-        for (col = 0; col < *(uint32_t *)width; col++) {
-            printf ("%02X%02X%02X ",
-                    (pixels + (row * *(uint32_t *)width) + col)->r,
-                    (pixels + (row * *(uint32_t *)width) + col)->g,
-                    (pixels + (row * *(uint32_t *)width) + col)->b);
-        }
-        printf ("\n");
-    }
+    picture->width = *(uint32_t *)width;
+    picture->height = *(uint32_t *)height;
+    picture->bpp = *(uint16_t *)bpp;
+    picture->data = pixels;
+
+    ret = 0;
+    goto ret;
 
 cleanup:
     if (temp)       free (temp);
     if (pixels)     free (pixels);
     if (palette)    free (palette);
     if (dib_header) free (dib_header);
+    ret = -1;
+ret:
+    return ret;;
 }
 
 int main () {
     int fd = open ("../0.bmp", O_RDONLY);
+    struct image *picture = {0};
+    int read;
+    uint32_t row;
+    uint32_t col;
     if (fd < 0) {
         write (2, OPEN_ERR_MSG, strlen (OPEN_ERR_MSG));
         return -1;
     }
-    read_bmp (fd);
+
+    read = read_bmp (fd, picture);
+
+    if (!read) {
+        for (row = 0; row < picture->height; row++) {
+            for (col = 0; col < picture->width; col++) {
+                printf ("%02X%02X%02X ",
+                        (picture->data + (row * picture->width) + col)->r,
+                        (picture->data + (row * picture->width) + col)->g,
+                        (picture->data + (row * picture->width) + col)->b);
+            }
+            printf ("\n");
+        }
+    }
+
     close (fd);
     return 0;
 }
