@@ -1,13 +1,14 @@
 #ifndef BMP_H_20180228_171650
 #define BMP_H_20180228_171650
+#include <string.h>
 
 #define HEADER_SIZE 14
 
 #define ERR(MSG) write (2, MSG, strlen (MSG))
 
-const char *ALLOC_ERR_MSG = "Unable to allocate memory!\n";
-const char *OPEN_ERR_MSG = "Unable to open file!\n";
-const char *READ_ERR_MSG = "Unable to read from file!\n";
+extern const char *ALLOC_ERR_MSG;
+extern const char *OPEN_ERR_MSG;
+extern const char *READ_ERR_MSG;
 
 struct pixel {
     uint8_t r;
@@ -21,5 +22,7 @@ struct image {
     uint16_t bpp;
     struct pixel *data;
 };
+
+int read_bmp (int, struct image *);
 
 #endif

@@ -5,8 +5,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
-
 #include "bmp.h"
+
+const char *ALLOC_ERR_MSG = "Unable to allocate memory!\n";
+const char *OPEN_ERR_MSG = "Unable to open file!\n";
+const char *READ_ERR_MSG = "Unable to read from file!\n";
 
 /* Checks endianness of a system
  * return 1: same endian
@@ -243,6 +246,7 @@ cleanup:
     return ret;
 }
 
+/*
 int main () {
     int fd = open ("../0.bmp", O_RDONLY);
     struct image *picture = {0};
@@ -271,3 +275,4 @@ int main () {
     close (fd);
     return 0;
 }
+*/
