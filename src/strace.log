@@ -1,0 +1,90 @@
+execve("./slide", ["./slide", "../"], 0x7ffc27fd3218 /* 34 vars */) = 0
+brk(NULL)                               = 0x562e226be000
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f015adc4000
+access("/etc/ld.so.preload", R_OK)      = 0
+open("/etc/ld.so.preload", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=0, ...}) = 0
+close(3)                                = 0
+open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=68287, ...}) = 0
+mmap(NULL, 68287, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f015adb3000
+close(3)                                = 0
+open("/lib64/libncurses.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\320K\1\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=412208, ...}) = 0
+mmap(NULL, 2509936, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f015a93d000
+mprotect(0x7f015a99d000, 2097152, PROT_NONE) = 0
+mmap(0x7f015ab9d000, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x60000) = 0x7f015ab9d000
+close(3)                                = 0
+open("/lib64/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\320\6\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=1807816, ...}) = 0
+mmap(NULL, 3915192, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f015a581000
+mprotect(0x7f015a733000, 2097152, PROT_NONE) = 0
+mmap(0x7f015a933000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1b2000) = 0x7f015a933000
+mmap(0x7f015a939000, 15800, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f015a939000
+close(3)                                = 0
+mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f015adb0000
+arch_prctl(ARCH_SET_FS, 0x7f015adb0700) = 0
+mprotect(0x7f015a933000, 16384, PROT_READ) = 0
+mprotect(0x7f015ab9d000, 16384, PROT_READ) = 0
+mprotect(0x562e223da000, 4096, PROT_READ) = 0
+mprotect(0x7f015adc6000, 4096, PROT_READ) = 0
+munmap(0x7f015adb3000, 68287)           = 0
+open("/dev/fb0", O_RDWR)                = 3
+ioctl(3, FBIOGET_VSCREENINFO, 0x7ffed8d8a3e0) = 0
+ioctl(3, FBIOGET_FSCREENINFO, 0x7ffed8d8a390) = 0
+open("../0.bmp", O_RDONLY)              = 4
+brk(NULL)                               = 0x562e226be000
+brk(0x562e226df000)                     = 0x562e226df000
+ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+stat("/home/oskari/.terminfo", 0x562e226be7f0) = -1 ENOENT (No such file or directory)
+stat("/etc/terminfo", {st_mode=S_IFDIR|0755, st_size=4096, ...}) = 0
+stat("/usr/share/terminfo", {st_mode=S_IFDIR|0755, st_size=4096, ...}) = 0
+access("/etc/terminfo/l/linux", R_OK)   = 0
+open("/etc/terminfo/l/linux", O_RDONLY) = 5
+fstat(5, {st_mode=S_IFREG|0644, st_size=1780, ...}) = 0
+read(5, "\32\1\24\0\35\0\20\0}\1I\3linux|linux console\0"..., 4096) = 1780
+read(5, "", 4096)                       = 0
+close(5)                                = 0
+ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, TIOCGWINSZ, {ws_row=48, ws_col=170, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, TIOCGWINSZ, {ws_row=48, ws_col=170, ws_xpixel=0, ws_ypixel=0}) = 0
+ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, TCGETS, {B38400 opost isig icanon echo ...}) = 0
+ioctl(1, SNDCTL_TMR_STOP or TCSETSW, {B38400 opost isig -icanon echo ...}) = 0
+ioctl(1, SNDCTL_TMR_STOP or TCSETSW, {B38400 opost isig -icanon -echo ...}) = 0
+rt_sigaction(SIGTSTP, NULL, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+rt_sigaction(SIGTSTP, {sa_handler=0x7f015a9668a0, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f015a5b72d0}, NULL, 8) = 0
+rt_sigaction(SIGINT, NULL, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+rt_sigaction(SIGINT, {sa_handler=0x7f015a9667a0, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f015a5b72d0}, NULL, 8) = 0
+rt_sigaction(SIGTERM, NULL, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+rt_sigaction(SIGTERM, {sa_handler=0x7f015a9667a0, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f015a5b72d0}, NULL, 8) = 0
+rt_sigaction(SIGWINCH, NULL, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=0}, 8) = 0
+rt_sigaction(SIGWINCH, {sa_handler=0x7f015a966750, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x7f015a5b72d0}, NULL, 8) = 0
+ioctl(1, TCGETS, {B38400 opost isig -icanon -echo ...}) = 0
+ioctl(1, SNDCTL_TMR_STOP or TCSETSW, {B38400 opost -isig -icanon -echo ...}) = 0
+write(1, "\33[1;48r\33[0;10m\33[4l\33[?7h\33[?25l\33[?"..., 34) = 34
+read(4, "BM\366\0\0\0\0\0\0\0006\0\0\0", 14) = 14
+lseek(4, 0, SEEK_CUR)                   = 14
+lseek(4, 0, SEEK_END)                   = 246
+lseek(4, 14, SEEK_SET)                  = 14
+read(4, "(\0\0\0", 4)                   = 4
+read(4, "\10\0\0\0\10\0\0\0\1\0\30\0\0\0\0\0\300\0\0\0\23\v\0\0\23\v\0\0\0\0\0\0"..., 36) = 36
+read(4, "\0\0\377\0\0\377\0\0\377\0\0\377\377\377\377\377\377\377\377\377\377\377\377\377\0\0\377\0\0\377\0\0"..., 192) = 192
+mmap(NULL, 4227072, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) = 0x7f015a179000
+rt_sigaction(SIGTSTP, {sa_handler=SIG_IGN, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f015a5b72d0}, {sa_handler=0x7f015a9668a0, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f015a5b72d0}, 8) = 0
+write(1, "\33[H\33[J", 6)               = 6
+rt_sigaction(SIGTSTP, {sa_handler=0x7f015a9668a0, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7f015a5b72d0}, NULL, 8) = 0
+read(0, "q", 1)                         = 1
+close(4)                                = 0
+munmap(0x7f015a179000, 4227072)         = 0
+close(3)                                = 0
+write(1, "\33[?25h\33[?0c", 11)         = 11
+write(1, "\33[48;1H\r", 8)              = 8
+ioctl(1, SNDCTL_TMR_STOP or TCSETSW, {B38400 opost isig icanon echo ...}) = 0
+exit_group(0)                           = ?
++++ exited with 0 +++

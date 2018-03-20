@@ -4,7 +4,7 @@
 
 #define HEADER_SIZE 14
 
-#define ERR(MSG) write (2, MSG, strlen (MSG))
+#define ERROR(MSG) write (2, MSG, strlen (MSG))
 
 extern const char *ALLOC_ERR_MSG;
 extern const char *OPEN_ERR_MSG;

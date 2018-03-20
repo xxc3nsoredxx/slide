@@ -36,7 +36,7 @@ void rev (uint8_t *arr, const unsigned int len) {
  * Sorry for all the ugly typecating that is about to come!
  * 
  * Reads a BMP from file and assignes it to the struct pointed to by picture
- * Return 0 on success, -1 on fail
+ * Return 1 on success, 0 on fail
  */
 int read_bmp (int fd, struct image* picture) {
     int ret;
@@ -77,7 +77,7 @@ int read_bmp (int fd, struct image* picture) {
     /* Attempt to read the BMP header */
     nread = read (fd, bmp_header, HEADER_SIZE);
     if (nread != HEADER_SIZE) {
-        ERR(READ_ERR_MSG);
+        ERROR(READ_ERR_MSG);
         goto err;
     }
 
@@ -96,120 +96,120 @@ int read_bmp (int fd, struct image* picture) {
     /* Reverse the endianness if needed */
     if (reverse_endian) {
         rev (size, 4);
-        rev (data_off, 4);
-    }
+                rev (data_off, 4);
+            }
 
-    /* Read the DIB size */
-    nread = read (fd, dib_size, 4);
-    if (nread != 4) {
-        ERR(READ_ERR_MSG);
-        goto err;
-    }
+            /* Read the DIB size */
+            nread = read (fd, dib_size, 4);
+            if (nread != 4) {
+                ERROR(READ_ERR_MSG);
+                goto err;
+            }
 
-    /* Reverse the endianness if needed */
-    if (reverse_endian) {
-        rev (dib_size, 4);
-    }
+            /* Reverse the endianness if needed */
+            if (reverse_endian) {
+                rev (dib_size, 4);
+            }
 
-    /* Read the rest of the DIB header */
-    dib_header = calloc (*(uint32_t *)dib_size - 4, 1);
-    if (!dib_header) {
-        ERR(ALLOC_ERR_MSG);
-        goto err;
-    }
-    nread = read (fd, dib_header, *(uint32_t *)dib_size - 4);
-    if (nread != *(uint32_t *)dib_size - 4) {
-        ERR(READ_ERR_MSG);
-        goto err;
-    }
+            /* Read the rest of the DIB header */
+            dib_header = calloc (*(uint32_t *)dib_size - 4, 1);
+            if (!dib_header) {
+                ERROR(ALLOC_ERR_MSG);
+                goto err;
+            }
+            nread = read (fd, dib_header, *(uint32_t *)dib_size - 4);
+            if (nread != *(uint32_t *)dib_size - 4) {
+                ERROR(READ_ERR_MSG);
+                goto err;
+            }
 
-    /* Get the width and height */
-    memcpy (width, dib_header, 4);
-    memcpy (height, (dib_header + 4), 4);
+            /* Get the width and height */
+            memcpy (width, dib_header, 4);
+            memcpy (height, (dib_header + 4), 4);
 
-    /* Get the number of color planes */
-    memcpy (c_planes, (dib_header + 8), 2);
+            /* Get the number of color planes */
+            memcpy (c_planes, (dib_header + 8), 2);
 
-    /* Get the bits per pixel */
-    memcpy (bpp, (dib_header + 10), 2);
+            /* Get the bits per pixel */
+            memcpy (bpp, (dib_header + 10), 2);
 
-    /* Get the compression method */
-    memcpy (compression, (dib_header + 12), 4);
+            /* Get the compression method */
+            memcpy (compression, (dib_header + 12), 4);
 
-    /* Get the size of the raw data (plus padding) */
-    memcpy (data_size, (dib_header + 16), 4);
+            /* Get the size of the raw data (plus padding) */
+            memcpy (data_size, (dib_header + 16), 4);
 
-    /* Get the horizontal and vertical pixels/meter */
-    memcpy (ppm_h, (dib_header + 20), 4);
-    memcpy (ppm_v, (dib_header + 24), 4);
+            /* Get the horizontal and vertical pixels/meter */
+            memcpy (ppm_h, (dib_header + 20), 4);
+            memcpy (ppm_v, (dib_header + 24), 4);
 
-    /* Get the number of colors in the palette */
-    memcpy (n_palette, (dib_header + 28), 4);
+            /* Get the number of colors in the palette */
+            memcpy (n_palette, (dib_header + 28), 4);
 
-    /* Get the number of important colors */
-    memcpy (n_important, (dib_header + 32), 4);
+            /* Get the number of important colors */
+            memcpy (n_important, (dib_header + 32), 4);
 
-    /* Reverse the endianness if needed */
-    if (reverse_endian) {
-        rev (width, 4);
-        rev (height, 4);
-        rev (c_planes, 2);
-        rev (bpp, 2);
-        rev (compression, 4);
-        rev (data_size, 4);
-        rev (ppm_h, 4);
-        rev (ppm_v, 4);
-        rev (n_palette, 4);
-        rev (n_important, 4);
-    }
+            /* Reverse the endianness if needed */
+            if (reverse_endian) {
+                rev (width, 4);
+                rev (height, 4);
+                rev (c_planes, 2);
+                rev (bpp, 2);
+                rev (compression, 4);
+                rev (data_size, 4);
+                rev (ppm_h, 4);
+                rev (ppm_v, 4);
+                rev (n_palette, 4);
+                rev (n_important, 4);
+            }
 
-    /* Get the height order
-     * + is bottom to top
-     * - is top to bottom
-     */
-    bot_top = *(int32_t *)height > 0;
+            /* Get the height order
+             * + is bottom to top
+             * - is top to bottom
+             */
+            bot_top = *(int32_t *)height > 0;
 
-    /* Get the palette information */
-    if (*(uint32_t *)n_palette || *(uint16_t *)bpp <= 8) {
-        dib_end = 14 + *(uint32_t *)dib_size;
-        palette_bytes = *(uint32_t *)data_off - dib_end;
-        palette = calloc (palette_bytes / 4, sizeof (struct pixel));
-        if (!palette) {
-            ERR(ALLOC_ERR_MSG);
-            goto err;
-        }
-        nread = read (fd, palette, palette_bytes);
-        if (nread != palette_bytes) {
-            ERR(READ_ERR_MSG);
-            goto err;
-        }
-    }
+            /* Get the palette information */
+            if (*(uint32_t *)n_palette || *(uint16_t *)bpp <= 8) {
+                dib_end = 14 + *(uint32_t *)dib_size;
+                palette_bytes = *(uint32_t *)data_off - dib_end;
+                palette = calloc (palette_bytes / 4, sizeof (struct pixel));
+                if (!palette) {
+                    ERROR(ALLOC_ERR_MSG);
+                    goto err;
+                }
+                nread = read (fd, palette, palette_bytes);
+                if (nread != palette_bytes) {
+                    ERROR(READ_ERR_MSG);
+                    goto err;
+                }
+            }
 
-    /* Read the pixel data from the file */
-    data = calloc (*(uint32_t *)data_size, 1);
-    if (!data) {
-        ERR(ALLOC_ERR_MSG);
-        goto err;
-    }
-    nread = read (fd, data, *(uint32_t *)data_size);
-    if (nread != *(uint32_t *)data_size) {
-        ERR(READ_ERR_MSG);
-        goto err;
-    }
+            /* Read the pixel data from the file */
+            data = calloc (*(uint32_t *)data_size, 1);
+            if (!data) {
+                ERROR(ALLOC_ERR_MSG);
+                goto err;
+            }
+            nread = read (fd, data, *(uint32_t *)data_size);
+            if (nread != *(uint32_t *)data_size) {
+                ERROR(READ_ERR_MSG);
+                goto err;
+            }
 
-    pixels = calloc (*(uint32_t *)width * *(uint32_t *) height,
-                     sizeof (struct pixel));
-    if (!pixels) {
-        ERR(ALLOC_ERR_MSG);
-        goto err;
-    }
-    /* Zero bytes padded to the end of each row for 4-byte allignment */
-    pad = (*(uint32_t *)width * *(uint16_t *)bpp / 8) % 4;
-    /* Don't deal with palette just yet */
-    /* --------CHANGE THIS, TEMPORARY ONLY FOR 24bpp!!!!-------- */
-    temp = calloc (3, 1);
-    if (!temp) {
-        ERR(ALLOC_ERR_MSG);
+            pixels = calloc (*(uint32_t *)width * *(uint32_t *) height,
+                             sizeof (struct pixel));
+            if (!pixels) {
+                ERROR(ALLOC_ERR_MSG);
+                goto err;
+            }
+            /* Zero bytes padded to the end of each row for 4-byte allignment */
+            pad = (*(uint32_t *)width * *(uint16_t *)bpp / 8) % 4;
+            /* Don't deal with palette just yet */
+            /* --------CHANGE THIS, TEMPORARY ONLY FOR 24bpp!!!!-------- */
+            temp = calloc (3, 1);
+            if (!temp) {
+                ERROR(ALLOC_ERR_MSG);
         goto err;
     }
     for (row = 0; row < *(uint32_t *)height; row++) {
@@ -232,11 +232,11 @@ int read_bmp (int fd, struct image* picture) {
     /* Set pixels to point to null to ensure that it doesn't get freed early */
     pixels = (void *)0;
 
-    ret = 0;
+    ret = 1;
     goto cleanup;
 
 err:
-    ret = -1;
+    ret = 0;
 cleanup:
     if (temp)       free (temp);
     if (pixels)     free (pixels);

@@ -1,7 +1,9 @@
+#include <curses.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
@@ -9,19 +11,44 @@
 #include <sys/types.h>
 #include "bmp.h"
 
+unsigned int ll;
+unsigned int bpp;
+unsigned int *fb;
+
+unsigned int color (struct pixel p) {
+    unsigned int ret = 0;
+    ret |= p.r << 16;
+    ret |= p.g << 8;
+    ret |= p.b;
+    return ret;
+}
+
+unsigned int position (uint32_t row, uint32_t col) {
+    return (row * (ll / (bpp / 8))) + col;
+}
+
+void draw (uint32_t row, uint32_t col, struct pixel p) {
+    *(fb + position (row, col)) = color (p);
+}
+
 int main (int argc, char **argv) {
     int fb_file;
     struct fb_var_screeninfo info;
-    unsigned long pixels;
-    unsigned int *fb;
+    struct fb_fix_screeninfo finfo;
     uint32_t row;
     uint32_t col;
-    unsigned long pos;
-    int picture_file;
-    struct image *picture;
-    int read;
+    int pic_file;
+    WINDOW *main_win;
+    struct image *pic;
+    int read_success;
 
-    const char *CSI = "\x1B[";
+    /* Test arguments */
+    if (argc != 2) {
+        printf ("Usage: %s dir\n", *argv);
+        printf ("   dir - path where the slideshow is\n");
+        printf ("         0.bmp, 1.bmp, ...\n");
+        return -1;
+    }
 
     /* Attempt to open the framebuffer */
     fb_file = open ("/dev/fb0", O_RDWR);
@@ -32,73 +59,89 @@ int main (int argc, char **argv) {
 
     /* Attempt to get information about the screen */
     if (ioctl (fb_file, FBIOGET_VSCREENINFO, &info)) {
-        printf ("Error getting screen info.\n");
+        printf ("Error getting variable screen info.\n");
+        close (fb_file);
+        return -1;
+    }
+    if (ioctl (fb_file, FBIOGET_FSCREENINFO, &finfo)) {
+        printf ("Error getting fixed screen info.\n");
         close (fb_file);
         return -1;
     }
 
-    /* Calculate the pixel count */
-    pixels = info.xres * info.yres;
+    /* Get the line length */
+    ll = finfo.line_length;
 
+    /* Get the bits per pixel */
+    bpp = info.bits_per_pixel;
+
+    /*
     printf ("x: %d\n", info.xres);
     printf ("y: %d\n", info.yres);
+    */
 
     /* Attempt to mmap the framebuffer */
-    fb = mmap (0, (pixels + (info.yres * 10)) * 4, PROT_READ|PROT_WRITE, MAP_SHARED, fb_file, 0);
+    fb = mmap (0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_file, 0);
     if ((long)fb == (long)MAP_FAILED) {
         printf ("Error mapping framebuffer to memory.\n");
         close (fb_file);
         return -1;
     }
 
-    /* Hide cursor */
-    write (1, CSI, 2);
-    write (1, "?25l", 4);
-
     /* Open an image file */
-    picture_file = open ("../0.bmp", O_RDONLY);
-    if (picture_file < 0) {
-        ERR(OPEN_ERR_MSG);
+    pic_file = open ("../0.bmp", O_RDONLY);
+    if (pic_file < 0) {
+        ERROR(OPEN_ERR_MSG);
         return -1;
     }
 
-    picture = malloc (sizeof (struct image));
-    read = read_bmp (picture_file, picture);
+    /* Start ncurses */
+    main_win = initscr ();
+    raw ();
+    noecho ();
+    keypad (main_win, TRUE);
+    curs_set (0);
+    move (0,0);
+    refresh ();
 
-    if (!read) {
-        for (row = 0; row < picture->height; row++) {
-            for (col = 0; col < picture->width; col++) {
+    pic = malloc (sizeof (struct image));
+    read_success = read_bmp (pic_file, pic);
+
+    /*
+    if (read_success) {
+        for (row = 0; row < pic->height; row++) {
+            for (col = 0; col < pic->width; col++) {
                 printf ("%02X%02X%02X ",
-                        (picture->data + (row * picture->width) + col)->r,
-                        (picture->data + (row * picture->width) + col)->g,
-                        (picture->data + (row * picture->width) + col)->b);
+                        (pic->data + (row * pic->width) + col)->r,
+                        (pic->data + (row * pic->width) + col)->g,
+                        (pic->data + (row * pic->width) + col)->b);
             }
             printf ("\n");
         }
     }
+    */
 
     /* Draw to the screen */
-    /*
-    for (int c = 0; c < 1000000000; c+=100000) {
-        for (row = 0; row < info.yres; row++) {
-            for (col = 0; col < info.xres; col++) {
-                pos = (row * info.xres) + (row * 10) + col;
-                *(fb + pos) = row * col + c;
+    if (read_success) {
+        for (row = 0; row < pic->height; row++) {
+            for (col = 0; col < pic->width; col++) {
+                draw (row, col, *(pic->data + (row * pic->width) + col));
             }
         }
     }
-    */
+
+    while (getch () != 'q');
+
+    /* Close ncurses */
+    curs_set (1);
+    endwin ();
 
     /* Close the image file */
-    close (picture_file);
+    close (pic_file);
 
     /* Close the framebuffer */
-    munmap (fb, (pixels + (info.yres * 10)) * 4);
+    munmap (fb, finfo.smem_len);
     close (fb_file);
-
-    /* Show cursor */
-    write (1, CSI, 2);
-    write (1, "?25h", 4);
 
     return 0;
 }
