@@ -1,3 +1,4 @@
+#include <curses.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -6,10 +7,6 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "bmp.h"
-
-const char *ALLOC_ERR_MSG = "Unable to allocate memory!\n";
-const char *OPEN_ERR_MSG = "Unable to open file!\n";
-const char *READ_ERR_MSG = "Unable to read from file!\n";
 
 /* Checks endianness of a system
  * return 1: same endian
@@ -162,6 +159,8 @@ int read_bmp (int fd, struct image* picture) {
                 rev (n_palette, 4);
                 rev (n_important, 4);
             }
+
+            printw ("bpp: %d\n", *(uint16_t *)bpp);
 
             /* Get the height order
              * + is bottom to top
