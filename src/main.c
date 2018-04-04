@@ -6,12 +6,14 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
-#include "bmp.h"
+
+#define ERROR(MSG) write (2, MSG, strlen (MSG))
 
 const char *ALLOC_ERR_MSG = "Unable to allocate memory!\n";
 const char *OPEN_ERR_MSG = "Unable to open file!\n";
@@ -25,22 +27,8 @@ unsigned int ll;
 unsigned int bpp;
 unsigned int *fb;
 
-unsigned int color (struct pixel p) {
-    unsigned int ret = 0;
-    ret |= p.r << 16;
-    ret |= p.g << 8;
-    ret |= p.b;
-    return ret;
-}
-
 unsigned int position (uint32_t row, uint32_t col) {
     return (row * (ll / (bpp / 8))) + col;
-}
-
-/* void draw (uint32_t row, uint32_t col, struct pixel p) { */
-void draw (uint32_t row, uint32_t col, png_bytep p) {
-    /* *(fb + position (row, col)) = color (p); */
-    *(fb + position (row, col)) = *p;
 }
 
 int main (int argc, char **argv) {
@@ -54,9 +42,7 @@ int main (int argc, char **argv) {
     uint32_t col;
     FILE *pic_file;
     WINDOW *main_win;
-    struct image *pic;
     uint8_t png_sig [8];
-    /* int read_success; */
     ssize_t nread;
     png_structp png_ptr = 0;
     png_infop info_ptr = 0;
@@ -71,7 +57,6 @@ int main (int argc, char **argv) {
     if (argc != 2) {
         printf ("Usage: %s dir\n", *argv);
         printf ("   dir - path where the slideshow is\n");
-        /* printf ("         0.bmp, 1.bmp, ...\n"); */
         printf ("         0.png, 1.png, ...\n");
         return -1;
     }
@@ -111,7 +96,6 @@ int main (int argc, char **argv) {
     bpp = info.bits_per_pixel;
 
     /* Open an image file */
-    /* pic_file = open ("../0.bmp", O_RDONLY); */
     pic_file = fopen ("../0.png", "rb");
     if (!pic_file) {
         ERROR(OPEN_ERR_MSG);
@@ -128,8 +112,6 @@ int main (int argc, char **argv) {
     refresh ();
 
     /* Read the image */
-    /* pic = malloc (sizeof (struct image)); */
-    /* read_success = read_bmp (pic_file, pic); */
     nread = fread (png_sig, 1, 8, pic_file);
     if (png_sig_cmp (png_sig, 0, nread)) {
         ERROR(NOT_PNG_MSG);
@@ -194,7 +176,6 @@ int main (int argc, char **argv) {
     for (row = 0; row < height && row < info.yres; row++) {
         cx = 0;
         for (col = 0; col < width && col < info.xres; col++) {
-            /* draw (row, col, (*(row_pointers + row) + col)); */
             /* R */
             *(fb_buf + position (row, col)) |= (*(*(row_pointers + row) + (cx + 0)) << 16) & 0xFF0000;
             /* G */
@@ -205,31 +186,6 @@ int main (int argc, char **argv) {
         }
     }
     memcpy (fb, fb_buf, finfo.smem_len);
-
-    /*
-    if (read_success) {
-        for (row = 0; row < pic->height; row++) {
-            for (col = 0; col < pic->width; col++) {
-                printf ("%02X%02X%02X ",
-                        (pic->data + (row * pic->width) + col)->r,
-                        (pic->data + (row * pic->width) + col)->g,
-                        (pic->data + (row * pic->width) + col)->b);
-            }
-            printf ("\n");
-        }
-    }
-    */
-
-    /* Draw to the screen */
-    /*
-    if (read_success) {
-        for (row = 0; row < pic->height; row++) {
-            for (col = 0; col < pic->width; col++) {
-                draw (row, col, *(pic->data + (row * pic->width) + col));
-            }
-        }
-    }
-    */
 
 close_png:
     png_destroy_read_struct (&png_ptr, &info_ptr, &end_info);
