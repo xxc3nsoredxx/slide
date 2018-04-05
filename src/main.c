@@ -50,10 +50,12 @@ int main (int argc, char **argv) {
     png_infop *info_ptr;
     png_infop *end_info;
     png_bytep **row_pointers;
+    /*
     png_byte color_type;
     png_byte bit_depth;
-    uint32_t height;
-    uint32_t width;
+    */
+    uint32_t *height;
+    uint32_t *width;
     int cx2;
     int quit = 0;
 
@@ -118,6 +120,8 @@ int main (int argc, char **argv) {
     info_ptr = malloc (slide_count * sizeof (png_infop));
     end_info = malloc (slide_count * sizeof (png_infop));
     row_pointers = malloc (slide_count * sizeof (png_bytep *));
+    width = malloc (slide_count * sizeof (uint32_t));
+    height = malloc (slide_count * sizeof (uint32_t));
     for (cx = 0; cx < slide_count; cx++) {
         memset (fname, 0, 1001);
         sprintf (fname, "%s%d.png", *(argv + 1), cx);
@@ -170,17 +174,19 @@ int main (int argc, char **argv) {
         png_read_info (*(png_ptr + cx), *(info_ptr + cx));
 
         /* Get the image dimensions */
-        height = png_get_image_height (*(png_ptr + cx), *(info_ptr + cx));
-        width = png_get_image_width (*(png_ptr + cx), *(info_ptr + cx));
+        *(height + cx) = png_get_image_height (*(png_ptr + cx), *(info_ptr + cx));
+        *(width + cx) = png_get_image_width (*(png_ptr + cx), *(info_ptr + cx));
 
+        /*
         color_type = png_get_color_type (*(png_ptr + cx), *(info_ptr + cx));
         bit_depth = png_get_bit_depth (*(png_ptr + cx), *(info_ptr + cx));
+        */
 
         png_read_update_info (*(png_ptr + cx), *(info_ptr + cx));
 
         /* Initialize the rows */
-        *(row_pointers + cx) = malloc (height * sizeof (png_bytep));
-        for (row = 0; row < height; row++) {
+        *(row_pointers + cx) = malloc (*(height + cx) * sizeof (png_bytep));
+        for (row = 0; row < *(height + cx); row++) {
             *(*(row_pointers + cx) + row) = malloc (png_get_rowbytes (*(png_ptr + cx), *(info_ptr + cx)));
         }
 
@@ -194,9 +200,9 @@ int main (int argc, char **argv) {
     do {
         /* Draw to the screen */
         memset (fb_buf, 0, finfo.smem_len);
-        for (row = 0; row < height && row < info.yres; row++) {
+        for (row = 0; row < *(height + cx ) && row < info.yres; row++) {
             cx2 = 0;
-            for (col = 0; col < width && col < info.xres; col++) {
+            for (col = 0; col < *(width + cx) && col < info.xres; col++) {
                 /* R */
                 *(fb_buf + position (row, col)) |= (*(*(*(row_pointers + cx) + row) + (cx2 + 0)) << 16) & 0xFF0000;
                 /* G */
@@ -246,10 +252,12 @@ close_ncurses:
     endwin ();
 
     printf ("slides: %d\n", slide_count);
+    /*
     printf ("widht: %d\n", width);
     printf ("height: %d\n", height);
     printf ("color type (%d), RGB (%d), RGBA (%d)\n", color_type, PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_RGBA);
     printf ("bit depth: %d\n", bit_depth);
+    */
 
     /* Close the image file */
     for (cx = 0; cx < slide_count; cx++) {
@@ -257,6 +265,8 @@ close_ncurses:
     }
     free (pic_file);
     free (fname);
+    free (width);
+    free (height);
 
     /* Close the framebuffer */
     free (fb_buf);
