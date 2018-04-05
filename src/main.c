@@ -1,4 +1,5 @@
 #include <curses.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <png.h>
 #include <setjmp.h>
@@ -13,8 +14,12 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
-#define ERROR(MSG) write (2, MSG, strlen (MSG))
+#define ERROR(MSG) write (2, (MSG), strlen ((MSG)))
 
+const char *FB_ERR_MSG = "Error opening framebuffer!\n";
+const char *VINFO_ERR_MSG = "Error getting variable screen info.\n";
+const char *FINFO_ERR_MSG = "Error getting fixed screen info.\n";
+const char *FB_MAP_ERR_MSG = "Error mapping framebuffer to memory.\n";
 const char *ALLOC_ERR_MSG = "Unable to allocate memory!\n";
 const char *OPEN_ERR_MSG = "Unable to open file!\n";
 const char *READ_ERR_MSG = "Unable to read from file!\n";
@@ -36,26 +41,25 @@ int main (int argc, char **argv) {
     int slide_count;
     int fb_file;
     int cx;
-    unsigned int *fb_buf;
+    unsigned int *fb_buf = 0;
     struct fb_var_screeninfo info;
     struct fb_fix_screeninfo finfo;
     uint32_t row;
     uint32_t col;
-    char *fname;
-    FILE **pic_file;
-    WINDOW *main_win;
+    char *fname = 0;
+    FILE **pic_file = 0;
     uint8_t png_sig [8];
     ssize_t nread;
-    png_structp *png_ptr;
-    png_infop *info_ptr;
-    png_infop *end_info;
-    png_bytep **row_pointers;
+    png_structp *png_ptr = 0;
+    png_infop *info_ptr = 0;
+    png_infop *end_info = 0;
+    png_bytep **row_pointers = 0;
     /*
     png_byte color_type;
     png_byte bit_depth;
     */
-    uint32_t *height;
-    uint32_t *width;
+    uint32_t *height = 0;
+    uint32_t *width = 0;
     int cx2;
     int quit = 0;
 
@@ -65,7 +69,10 @@ int main (int argc, char **argv) {
         printf ("   dir     path where the slideshow is\n");
         printf ("           0.png, 1.png, ...\n");
         printf ("   count   number of slides\n");
-        return -1;
+        ret = EINVAL;
+        ERROR(strerror (ret));
+        ERROR("\n");
+        goto close;
     }
 
     slide_count = atoi (*(argv + 2));
@@ -73,29 +80,38 @@ int main (int argc, char **argv) {
     /* Attempt to open the framebuffer */
     fb_file = open ("/dev/fb0", O_RDWR);
     if (fb_file == -1) {
-        printf ("Error opening framebuffer.\n");
-        return -1;
+        ret = errno;
+        ERROR(FB_ERR_MSG);
+        ERROR(strerror (ret));
+        ERROR("\n");
+        goto close;
     }
 
     /* Attempt to get information about the screen */
     if (ioctl (fb_file, FBIOGET_VSCREENINFO, &info)) {
-        printf ("Error getting variable screen info.\n");
-        close (fb_file);
-        return -1;
+        ret = errno;
+        ERROR(VINFO_ERR_MSG);
+        ERROR(strerror (ret));
+        ERROR("\n");
+        goto close;
     }
     if (ioctl (fb_file, FBIOGET_FSCREENINFO, &finfo)) {
-        printf ("Error getting fixed screen info.\n");
-        close (fb_file);
-        return -1;
+        ret = errno;
+        ERROR(FINFO_ERR_MSG);
+        ERROR(strerror (ret));
+        ERROR("\n");
+        goto close;
     }
 
     /* Attempt to mmap the framebuffer */
     fb = mmap (0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_file, 0);
     fb_buf = calloc (finfo.smem_len, 1);
     if ((long)fb == (long)MAP_FAILED || !fb_buf) {
-        printf ("Error mapping framebuffer to memory.\n");
-        close (fb_file);
-        return -1;
+        ret = errno;
+        ERROR(FB_MAP_ERR_MSG);
+        ERROR(strerror (ret));
+        ERROR("\n");
+        goto close;
     }
 
     /* Get the line length */
@@ -105,10 +121,10 @@ int main (int argc, char **argv) {
     bpp = info.bits_per_pixel;
 
     /* Start ncurses */
-    main_win = initscr ();
+    initscr ();
     raw ();
     noecho ();
-    keypad (main_win, TRUE);
+    keypad (stdscr, TRUE);
     curs_set (0);
     move (0,0);
     refresh ();
@@ -128,39 +144,53 @@ int main (int argc, char **argv) {
         *(fname + 1000) = 0;
         *(pic_file + cx) = fopen (fname, "rb");
         if (!*(pic_file + cx)) {
+            ret = errno;
             ERROR(OPEN_ERR_MSG);
-            return -1;
+            ERROR(strerror (ret));
+            ERROR("\n");
+            goto close_ncurses;
         }
 
         /* Read the image */
         nread = fread (png_sig, 1, 8, *(pic_file + cx));
         if (png_sig_cmp (png_sig, 0, nread)) {
+            ret = errno;
             ERROR(NOT_PNG_MSG);
-            ret = -1;
+            ERROR(strerror (ret));
+            ERROR("\n");
             goto close_ncurses;
         }
         *(png_ptr + cx) = png_create_read_struct (PNG_LIBPNG_VER_STRING, 0, 0, 0);
         if (!*(png_ptr + cx)) {
+            ret = errno;
             ERROR(PNG_PTR_MSG);
-            ret = -1;
+            ERROR(strerror (ret));
+            ERROR("\n");
             goto close_ncurses;
         }
         *(info_ptr + cx) = png_create_info_struct (*(png_ptr + cx));
         if (!*(info_ptr + cx)) {
+            ret = errno;
             ERROR(INFO_PTR_MSG);
-            ret = -1;
+            ERROR(strerror (ret));
+            ERROR("\n");
             goto close_png;
         }
         *(end_info + cx) = png_create_info_struct (*(png_ptr + cx));
         if (!*(end_info + cx)) {
+            ret = errno;
             ERROR(INFO_PTR_MSG);
-            ret = -1;
+            ERROR(strerror (ret));
+            ERROR("\n");
             goto close_png;
         }
 
         /* If libong errors, it comes here */
         if (setjmp (png_jmpbuf (*(png_ptr + cx)))) {
+            ret = errno;
             ERROR(LIBPNG_ERR_MSG);
+            ERROR(strerror (ret));
+            ERROR("\n");
             goto close_png;
         }
 
@@ -260,19 +290,20 @@ close_ncurses:
     */
 
     /* Close the image file */
+close:
     for (cx = 0; cx < slide_count; cx++) {
-        fclose (*(pic_file + cx));
+        if (*(pic_file + cx)) fclose (*(pic_file + cx));
     }
-    free (pic_file);
-    free (fname);
-    free (width);
-    free (height);
+    if (pic_file) free (pic_file);
+    if (fname) free (fname);
+    if (width) free (width);
+    if (height) free (height);
 
     /* Close the framebuffer */
-    free (fb_buf);
-    memset (fb, 0, finfo.smem_len);
-    munmap (fb, finfo.smem_len);
-    close (fb_file);
+    if (fb_buf) free (fb_buf);
+    if (fb) memset (fb, 0, finfo.smem_len);
+    if (fb) munmap (fb, finfo.smem_len);
+    if (fb_file) close (fb_file);
 
     return ret;
 }
