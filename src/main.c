@@ -30,10 +30,49 @@ const char *LIBPNG_ERR_MSG = "Libpng error!\n";
 
 unsigned int ll;
 unsigned int bpp;
+struct fb_var_screeninfo info;
+struct fb_fix_screeninfo finfo;
 unsigned int *fb;
+unsigned int *fb_buf;
 
+/* Calculates the index into the framebuffer */
 unsigned int position (uint32_t row, uint32_t col) {
     return (row * (ll / (bpp / 8))) + col;
+}
+
+/* Draws an image to the screen */
+void draw (png_bytep *rows, uint32_t width, uint32_t height) {
+    unsigned int row;
+    unsigned int col;
+    unsigned int offset = 0;
+    int cx;
+
+    /* Clear the backbuffer */
+    memset (fb_buf, 0, finfo.smem_len);
+
+    /* Calculate the centering offset */
+    if (width < info.xres) {
+        offset = (info.xres - width) / 2;
+    }
+    if (height < info.yres) {
+        offset += ((info.yres - height) / 2) * (ll / (bpp / 8));
+    }
+
+    /* Extract the RGB values and draw put them into the backbuffer */
+    for (row = 0; row < height && row < info.yres; row++) {
+        cx = 0;
+        for (col = 0; col < width && col < info.xres; col++) {
+            /* R */
+            *(fb_buf + (position (row, col) + offset)) |= (*(*(rows + row) + (cx + 0)) << 16) & 0xFF0000;
+            /* G */
+            *(fb_buf + (position (row, col) + offset)) |= (*(*(rows + row) + (cx + 1)) << 8) & 0xFF00;
+            /* B */
+            *(fb_buf + (position (row, col) + offset)) |= *(*(rows + row) + (cx + 2)) & 0xFF;
+            cx += 3;
+        }
+    }
+    /* Copy to the screen */
+    memcpy (fb, fb_buf, finfo.smem_len);
 }
 
 int main (int argc, char **argv) {
@@ -41,11 +80,7 @@ int main (int argc, char **argv) {
     int slide_count;
     int fb_file;
     int cx;
-    unsigned int *fb_buf = 0;
-    struct fb_var_screeninfo info;
-    struct fb_fix_screeninfo finfo;
-    uint32_t row;
-    uint32_t col;
+    unsigned int row;
     char *fname = 0;
     FILE **pic_file = 0;
     uint8_t png_sig [8];
@@ -60,8 +95,6 @@ int main (int argc, char **argv) {
     */
     uint32_t *height = 0;
     uint32_t *width = 0;
-    int cx2;
-    int quit = 0;
 
     /* Test arguments */
     if (argc != 3) {
@@ -228,28 +261,14 @@ int main (int argc, char **argv) {
     cx = 0;
 
     do {
-        /* Draw to the screen */
-        memset (fb_buf, 0, finfo.smem_len);
-        for (row = 0; row < *(height + cx ) && row < info.yres; row++) {
-            cx2 = 0;
-            for (col = 0; col < *(width + cx) && col < info.xres; col++) {
-                /* R */
-                *(fb_buf + position (row, col)) |= (*(*(*(row_pointers + cx) + row) + (cx2 + 0)) << 16) & 0xFF0000;
-                /* G */
-                *(fb_buf + position (row, col)) |= (*(*(*(row_pointers + cx) + row) + (cx2 + 1)) << 8) & 0xFF00;
-                /* B */
-                *(fb_buf + position (row, col)) |= *(*(*(row_pointers + cx) + row) + (cx2 + 2)) & 0xFF;
-                cx2 += 3;
-            }
-        }
-        memcpy (fb, fb_buf, finfo.smem_len);
+        /* Draw slide to the screen */
+        draw (*(row_pointers + cx), *(width + cx), *(height + cx));
 
         /* Get input */
         switch (getch ()) {
         case 'q':
         case 'Q':
-            quit = 1;
-            break;
+            goto close_all;
         case 'h':
         case 'j':
             cx = (cx > 0) ? cx - 1 : cx;
@@ -269,8 +288,9 @@ int main (int argc, char **argv) {
         default:
             break;
         }
-    } while (!quit);
+    } while (1);
 
+close_all:
 close_png:
     for (cx = 0; cx < slide_count; cx++) {
         png_destroy_read_struct ((png_ptr + cx), (info_ptr + cx), (end_info + cx));
