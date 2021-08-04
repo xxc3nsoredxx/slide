@@ -16,17 +16,17 @@
 
 #define ERROR(MSG) write (2, (MSG), strlen ((MSG)))
 
-const char *FB_ERR_MSG = "Error opening framebuffer!\n";
-const char *VINFO_ERR_MSG = "Error getting variable screen info.\n";
-const char *FINFO_ERR_MSG = "Error getting fixed screen info.\n";
-const char *FB_MAP_ERR_MSG = "Error mapping framebuffer to memory.\n";
-const char *ALLOC_ERR_MSG = "Unable to allocate memory!\n";
-const char *OPEN_ERR_MSG = "Unable to open file!\n";
-const char *READ_ERR_MSG = "Unable to read from file!\n";
-const char *NOT_PNG_MSG = "Not a PNG file!\n";
-const char *PNG_PTR_MSG = "Error creating PNG pointer!\n";
-const char *INFO_PTR_MSG = "Error creating info pointer!\n";
-const char *LIBPNG_ERR_MSG = "Libpng error!\n";
+const char *FB_ERR_MSG      = "Error opening framebuffer!";
+const char *VINFO_ERR_MSG   = "Error getting variable screen info.";
+const char *FINFO_ERR_MSG   = "Error getting fixed screen info.";
+const char *FB_MAP_ERR_MSG  = "Error mapping framebuffer to memory.";
+const char *ALLOC_ERR_MSG   = "Unable to allocate memory!";
+const char *OPEN_ERR_MSG    = "Unable to open file!";
+const char *READ_ERR_MSG    = "Unable to read from file!";
+const char *NOT_PNG_MSG     = "Not a PNG file!";
+const char *PNG_PTR_MSG     = "Error creating PNG pointer!";
+const char *INFO_PTR_MSG    = "Error creating info pointer!";
+const char *LIBPNG_ERR_MSG  = "Libpng error!";
 
 unsigned int ll;
 unsigned int bpp;
@@ -76,6 +76,7 @@ void draw (png_bytep *rows, uint32_t width, uint32_t height) {
 }
 
 int main (int argc, char **argv) {
+    const char *error = 0;
     int ret = 0;
     int slide_count;
     int fb_file;
@@ -88,11 +89,11 @@ int main (int argc, char **argv) {
     png_structp *png_ptr = 0;
     png_infop *info_ptr = 0;
     png_infop *end_info = 0;
+    png_color_16 *background = 0;
     png_bytep **row_pointers = 0;
-    /*
-    png_byte color_type;
     png_byte bit_depth;
-    */
+    png_byte color_type;
+    png_byte interlace_type;
     uint32_t *height = 0;
     uint32_t *width = 0;
 
@@ -117,6 +118,7 @@ int main (int argc, char **argv) {
         ERROR(FB_ERR_MSG);
         ERROR(strerror (ret));
         ERROR("\n");
+        error = FB_ERR_MSG;
         goto close;
     }
 
@@ -126,6 +128,7 @@ int main (int argc, char **argv) {
         ERROR(VINFO_ERR_MSG);
         ERROR(strerror (ret));
         ERROR("\n");
+        error = VINFO_ERR_MSG;
         goto close;
     }
     if (ioctl (fb_file, FBIOGET_FSCREENINFO, &finfo)) {
@@ -133,6 +136,7 @@ int main (int argc, char **argv) {
         ERROR(FINFO_ERR_MSG);
         ERROR(strerror (ret));
         ERROR("\n");
+        error = FINFO_ERR_MSG;
         goto close;
     }
 
@@ -144,6 +148,7 @@ int main (int argc, char **argv) {
         ERROR(FB_MAP_ERR_MSG);
         ERROR(strerror (ret));
         ERROR("\n");
+        error = FB_MAP_ERR_MSG;
         goto close;
     }
 
@@ -168,6 +173,7 @@ int main (int argc, char **argv) {
     png_ptr = malloc (slide_count * sizeof (png_structp));
     info_ptr = malloc (slide_count * sizeof (png_infop));
     end_info = malloc (slide_count * sizeof (png_infop));
+    background = calloc(slide_count, sizeof(*background));
     row_pointers = malloc (slide_count * sizeof (png_bytep *));
     width = malloc (slide_count * sizeof (uint32_t));
     height = malloc (slide_count * sizeof (uint32_t));
@@ -181,6 +187,7 @@ int main (int argc, char **argv) {
             ERROR(OPEN_ERR_MSG);
             ERROR(strerror (ret));
             ERROR("\n");
+            error = OPEN_ERR_MSG;
             goto close_ncurses;
         }
 
@@ -191,6 +198,7 @@ int main (int argc, char **argv) {
             ERROR(NOT_PNG_MSG);
             ERROR(strerror (ret));
             ERROR("\n");
+            error = NOT_PNG_MSG;
             goto close_ncurses;
         }
         *(png_ptr + cx) = png_create_read_struct (PNG_LIBPNG_VER_STRING, 0, 0, 0);
@@ -199,6 +207,7 @@ int main (int argc, char **argv) {
             ERROR(PNG_PTR_MSG);
             ERROR(strerror (ret));
             ERROR("\n");
+            error = PNG_PTR_MSG;
             goto close_ncurses;
         }
         *(info_ptr + cx) = png_create_info_struct (*(png_ptr + cx));
@@ -207,6 +216,7 @@ int main (int argc, char **argv) {
             ERROR(INFO_PTR_MSG);
             ERROR(strerror (ret));
             ERROR("\n");
+            error = INFO_PTR_MSG;
             goto close_png;
         }
         *(end_info + cx) = png_create_info_struct (*(png_ptr + cx));
@@ -215,15 +225,22 @@ int main (int argc, char **argv) {
             ERROR(INFO_PTR_MSG);
             ERROR(strerror (ret));
             ERROR("\n");
+            error = INFO_PTR_MSG;
             goto close_png;
         }
+        (background + cx)->index = 0;
+        (background + cx)->red = 0;
+        (background + cx)->green = 0;
+        (background + cx)->blue = 0;
+        (background + cx)->gray = 0;
 
-        /* If libong errors, it comes here */
+        /* If libpng errors, it comes here */
         if (setjmp (png_jmpbuf (*(png_ptr + cx)))) {
             ret = errno;
             ERROR(LIBPNG_ERR_MSG);
             ERROR(strerror (ret));
             ERROR("\n");
+            error = LIBPNG_ERR_MSG;
             goto close_png;
         }
 
@@ -236,16 +253,29 @@ int main (int argc, char **argv) {
         /* Read PNG info */
         png_read_info (*(png_ptr + cx), *(info_ptr + cx));
 
+        bit_depth = png_get_bit_depth(*(png_ptr + cx), *(info_ptr + cx));
+        color_type = png_get_color_type(*(png_ptr + cx), *(info_ptr + cx));
+        interlace_type = png_get_interlace_type(*(png_ptr + cx), *(info_ptr + cx));
+
+        /* Set transformations */
+        if (bit_depth == 16) {
+            png_set_scale_16(*(png_ptr + cx));
+        }
+
+        if (color_type & PNG_COLOR_MASK_ALPHA) {
+            png_set_background(*(png_ptr + cx), (background + cx), PNG_BACKGROUND_GAMMA_SCREEN, 0, 1);
+        }
+
+        if (interlace_type != PNG_INTERLACE_NONE) {
+            png_set_interlace_handling(*(png_ptr + cx));
+        }
+
+        /* Update info structs */
+        png_read_update_info (*(png_ptr + cx), *(info_ptr + cx));
+
         /* Get the image dimensions */
         *(height + cx) = png_get_image_height (*(png_ptr + cx), *(info_ptr + cx));
         *(width + cx) = png_get_image_width (*(png_ptr + cx), *(info_ptr + cx));
-
-        /*
-        color_type = png_get_color_type (*(png_ptr + cx), *(info_ptr + cx));
-        bit_depth = png_get_bit_depth (*(png_ptr + cx), *(info_ptr + cx));
-        */
-
-        png_read_update_info (*(png_ptr + cx), *(info_ptr + cx));
 
         /* Initialize the rows */
         *(row_pointers + cx) = malloc (*(height + cx) * sizeof (png_bytep));
@@ -255,6 +285,9 @@ int main (int argc, char **argv) {
 
         /* Read the png */
         png_read_image (*(png_ptr + cx), *(row_pointers + cx));
+
+        /* Read the end */
+        png_read_end(*(png_ptr + cx), *(end_info + cx));
     }
 
     /* Set slide to initial frame */
@@ -302,6 +335,12 @@ close_ncurses:
     endwin ();
 
     printf ("slides: %d\n", slide_count);
+    if (error) {
+        printf("%s\n", error);
+        if (ret) {
+            printf("%s\n", strerror(ret));
+        }
+    }
     /*
     printf ("widht: %d\n", width);
     printf ("height: %d\n", height);

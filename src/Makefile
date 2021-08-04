@@ -1,7 +1,7 @@
 OBJS = main.o
 CC = gcc
-CFLAGS = -Wall -Wextra --pedantic-errors -std=c89 -c
-LFLAGS = -lncurses -lpng
+CFLAGS = -Wall -Wextra --pedantic-errors --std=c89 -c
+LFLAGS = $(shell pkg-config --libs ncurses libpng)
 
 main.o: main.c
 	$(CC) $(CFLAGS) main.c
