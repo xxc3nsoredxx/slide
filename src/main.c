@@ -4,11 +4,12 @@
 #include <png.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include <linux/fb.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -48,31 +49,29 @@ void draw (png_bytep *rows, uint32_t width, uint32_t height) {
     int cx;
 
     /* Clear the backbuffer */
-    memset (fb_buf, 0, finfo.smem_len);
+    memset(fb_buf, 0, finfo.smem_len);
 
     /* Calculate the centering offset */
-    if (width < info.xres) {
+    if (width < info.xres)
         offset = (info.xres - width) / 2;
-    }
-    if (height < info.yres) {
+    if (height < info.yres)
         offset += ((info.yres - height) / 2) * (ll / (bpp / 8));
-    }
 
     /* Extract the RGB values and draw put them into the backbuffer */
     for (row = 0; row < height && row < info.yres; row++) {
         cx = 0;
         for (col = 0; col < width && col < info.xres; col++) {
             /* R */
-            *(fb_buf + (position (row, col) + offset)) |= (*(*(rows + row) + (cx + 0)) << 16) & 0xFF0000;
+            *(fb_buf + (position(row, col) + offset)) |= (*(*(rows + row) + (cx + 0)) << 16) & 0xFF0000;
             /* G */
-            *(fb_buf + (position (row, col) + offset)) |= (*(*(rows + row) + (cx + 1)) << 8) & 0xFF00;
+            *(fb_buf + (position(row, col) + offset)) |= (*(*(rows + row) + (cx + 1)) << 8) & 0xFF00;
             /* B */
-            *(fb_buf + (position (row, col) + offset)) |= *(*(rows + row) + (cx + 2)) & 0xFF;
+            *(fb_buf + (position(row, col) + offset)) |= *(*(rows + row) + (cx + 2)) & 0xFF;
             cx += 3;
         }
     }
     /* Copy to the screen */
-    memcpy (fb, fb_buf, finfo.smem_len);
+    memcpy(fb, fb_buf, finfo.smem_len);
 }
 
 int main (int argc, char **argv) {
@@ -99,54 +98,54 @@ int main (int argc, char **argv) {
 
     /* Test arguments */
     if (argc != 3) {
-        printf ("Usage: %s dir count\n", *argv);
-        printf ("   dir     path where the slideshow is\n");
-        printf ("           0.png, 1.png, ...\n");
-        printf ("   count   number of slides\n");
+        printf("Usage: %s dir count\n", *argv);
+        printf("   dir     path where the slideshow is\n");
+        printf("           0.png, 1.png, ...\n");
+        printf("   count   number of slides\n");
         ret = EINVAL;
-        ERROR(strerror (ret));
+        ERROR(strerror(ret));
         ERROR("\n");
         goto close;
     }
 
-    slide_count = atoi (*(argv + 2));
+    slide_count = atoi(*(argv + 2));
 
     /* Attempt to open the framebuffer */
-    fb_file = open ("/dev/fb0", O_RDWR);
+    fb_file = open("/dev/fb0", O_RDWR);
     if (fb_file == -1) {
         ret = errno;
         ERROR(FB_ERR_MSG);
-        ERROR(strerror (ret));
+        ERROR(strerror(ret));
         ERROR("\n");
         error = FB_ERR_MSG;
         goto close;
     }
 
     /* Attempt to get information about the screen */
-    if (ioctl (fb_file, FBIOGET_VSCREENINFO, &info)) {
+    if (ioctl(fb_file, FBIOGET_VSCREENINFO, &info)) {
         ret = errno;
         ERROR(VINFO_ERR_MSG);
-        ERROR(strerror (ret));
+        ERROR(strerror(ret));
         ERROR("\n");
         error = VINFO_ERR_MSG;
         goto close;
     }
-    if (ioctl (fb_file, FBIOGET_FSCREENINFO, &finfo)) {
+    if (ioctl(fb_file, FBIOGET_FSCREENINFO, &finfo)) {
         ret = errno;
         ERROR(FINFO_ERR_MSG);
-        ERROR(strerror (ret));
+        ERROR(strerror(ret));
         ERROR("\n");
         error = FINFO_ERR_MSG;
         goto close;
     }
 
     /* Attempt to mmap the framebuffer */
-    fb = mmap (0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_file, 0);
-    fb_buf = calloc (finfo.smem_len, 1);
+    fb = mmap(0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_file, 0);
+    fb_buf = calloc(finfo.smem_len, 1);
     if ((long)fb == (long)MAP_FAILED || !fb_buf) {
         ret = errno;
         ERROR(FB_MAP_ERR_MSG);
-        ERROR(strerror (ret));
+        ERROR(strerror(ret));
         ERROR("\n");
         error = FB_MAP_ERR_MSG;
         goto close;
@@ -159,71 +158,71 @@ int main (int argc, char **argv) {
     bpp = info.bits_per_pixel;
 
     /* Start ncurses */
-    initscr ();
-    raw ();
-    noecho ();
-    keypad (stdscr, TRUE);
-    curs_set (0);
-    move (0,0);
-    refresh ();
+    initscr();
+    raw();
+    noecho();
+    keypad(stdscr, TRUE);
+    curs_set(0);
+    move(0,0);
+    refresh();
 
     /* Open image files */
-    fname = malloc (1001);
-    pic_file = malloc (slide_count * sizeof (FILE *));
-    png_ptr = malloc (slide_count * sizeof (png_structp));
-    info_ptr = malloc (slide_count * sizeof (png_infop));
-    end_info = malloc (slide_count * sizeof (png_infop));
+    fname = malloc(1001);
+    pic_file = malloc(slide_count * sizeof(*pic_file));
+    png_ptr = malloc(slide_count * sizeof(*png_ptr));
+    info_ptr = malloc(slide_count * sizeof(*info_ptr));
+    end_info = malloc(slide_count * sizeof(*end_info));
     background = calloc(slide_count, sizeof(*background));
-    row_pointers = malloc (slide_count * sizeof (png_bytep *));
-    width = malloc (slide_count * sizeof (uint32_t));
-    height = malloc (slide_count * sizeof (uint32_t));
+    row_pointers = malloc(slide_count * sizeof(*row_pointers));
+    width = malloc(slide_count * sizeof(*width));
+    height = malloc(slide_count * sizeof(*height));
     for (cx = 0; cx < slide_count; cx++) {
-        memset (fname, 0, 1001);
-        sprintf (fname, "%s%d.png", *(argv + 1), cx);
+        memset(fname, 0, 1001);
+        sprintf(fname, "%s%d.png", *(argv + 1), cx);
         *(fname + 1000) = 0;
-        *(pic_file + cx) = fopen (fname, "rb");
+        *(pic_file + cx) = fopen(fname, "rb");
         if (!*(pic_file + cx)) {
             ret = errno;
             ERROR(OPEN_ERR_MSG);
-            ERROR(strerror (ret));
+            ERROR(strerror(ret));
             ERROR("\n");
             error = OPEN_ERR_MSG;
             goto close_ncurses;
         }
 
         /* Read the image */
-        nread = fread (png_sig, 1, 8, *(pic_file + cx));
-        if (png_sig_cmp (png_sig, 0, nread)) {
+        nread = fread(png_sig, 1, 8, *(pic_file + cx));
+        if (png_sig_cmp(png_sig, 0, nread)) {
             ret = errno;
             ERROR(NOT_PNG_MSG);
-            ERROR(strerror (ret));
+            ERROR(strerror(ret));
             ERROR("\n");
             error = NOT_PNG_MSG;
             goto close_ncurses;
         }
-        *(png_ptr + cx) = png_create_read_struct (PNG_LIBPNG_VER_STRING, 0, 0, 0);
+        *(png_ptr + cx) = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
         if (!*(png_ptr + cx)) {
             ret = errno;
             ERROR(PNG_PTR_MSG);
-            ERROR(strerror (ret));
+            ERROR(strerror(ret));
             ERROR("\n");
             error = PNG_PTR_MSG;
             goto close_ncurses;
         }
-        *(info_ptr + cx) = png_create_info_struct (*(png_ptr + cx));
+        *(info_ptr + cx) = png_create_info_struct(*(png_ptr + cx));
         if (!*(info_ptr + cx)) {
             ret = errno;
             ERROR(INFO_PTR_MSG);
-            ERROR(strerror (ret));
+            ERROR(strerror(ret));
             ERROR("\n");
             error = INFO_PTR_MSG;
             goto close_png;
         }
-        *(end_info + cx) = png_create_info_struct (*(png_ptr + cx));
+        *(end_info + cx) = png_create_info_struct(*(png_ptr + cx));
         if (!*(end_info + cx)) {
             ret = errno;
             ERROR(INFO_PTR_MSG);
-            ERROR(strerror (ret));
+            ERROR(strerror(ret));
             ERROR("\n");
             error = INFO_PTR_MSG;
             goto close_png;
@@ -235,56 +234,53 @@ int main (int argc, char **argv) {
         (background + cx)->gray = 0;
 
         /* If libpng errors, it comes here */
-        if (setjmp (png_jmpbuf (*(png_ptr + cx)))) {
+        if (setjmp(png_jmpbuf(*(png_ptr + cx)))) {
             ret = errno;
             ERROR(LIBPNG_ERR_MSG);
-            ERROR(strerror (ret));
+            ERROR(strerror(ret));
             ERROR("\n");
             error = LIBPNG_ERR_MSG;
             goto close_png;
         }
 
         /* Initialize IO */
-        png_init_io (*(png_ptr + cx), *(pic_file + cx));
+        png_init_io(*(png_ptr + cx), *(pic_file + cx));
 
         /* Tell libpng about the signature bytes read */
-        png_set_sig_bytes (*(png_ptr + cx), nread);
+        png_set_sig_bytes(*(png_ptr + cx), nread);
 
         /* Read PNG info */
-        png_read_info (*(png_ptr + cx), *(info_ptr + cx));
+        png_read_info(*(png_ptr + cx), *(info_ptr + cx));
 
         bit_depth = png_get_bit_depth(*(png_ptr + cx), *(info_ptr + cx));
         color_type = png_get_color_type(*(png_ptr + cx), *(info_ptr + cx));
         interlace_type = png_get_interlace_type(*(png_ptr + cx), *(info_ptr + cx));
 
         /* Set transformations */
-        if (bit_depth == 16) {
+        if (bit_depth == 16)
             png_set_scale_16(*(png_ptr + cx));
-        }
 
-        if (color_type & PNG_COLOR_MASK_ALPHA) {
+        if (color_type & PNG_COLOR_MASK_ALPHA)
             png_set_background(*(png_ptr + cx), (background + cx), PNG_BACKGROUND_GAMMA_SCREEN, 0, 1);
-        }
 
-        if (interlace_type != PNG_INTERLACE_NONE) {
+        if (interlace_type != PNG_INTERLACE_NONE)
             png_set_interlace_handling(*(png_ptr + cx));
-        }
 
         /* Update info structs */
-        png_read_update_info (*(png_ptr + cx), *(info_ptr + cx));
+        png_read_update_info(*(png_ptr + cx), *(info_ptr + cx));
 
         /* Get the image dimensions */
-        *(height + cx) = png_get_image_height (*(png_ptr + cx), *(info_ptr + cx));
-        *(width + cx) = png_get_image_width (*(png_ptr + cx), *(info_ptr + cx));
+        *(height + cx) = png_get_image_height(*(png_ptr + cx), *(info_ptr + cx));
+        *(width + cx) = png_get_image_width(*(png_ptr + cx), *(info_ptr + cx));
 
         /* Initialize the rows */
-        *(row_pointers + cx) = malloc (*(height + cx) * sizeof (png_bytep));
+        *(row_pointers + cx) = malloc(*(height + cx) * sizeof(**row_pointers));
         for (row = 0; row < *(height + cx); row++) {
-            *(*(row_pointers + cx) + row) = malloc (png_get_rowbytes (*(png_ptr + cx), *(info_ptr + cx)));
+            *(*(row_pointers + cx) + row) = malloc(png_get_rowbytes (*(png_ptr + cx), *(info_ptr + cx)));
         }
 
         /* Read the png */
-        png_read_image (*(png_ptr + cx), *(row_pointers + cx));
+        png_read_image(*(png_ptr + cx), *(row_pointers + cx));
 
         /* Read the end */
         png_read_end(*(png_ptr + cx), *(end_info + cx));
@@ -293,12 +289,12 @@ int main (int argc, char **argv) {
     /* Set slide to initial frame */
     cx = 0;
 
-    do {
+    while (1) {
         /* Draw slide to the screen */
-        draw (*(row_pointers + cx), *(width + cx), *(height + cx));
+        draw(*(row_pointers + cx), *(width + cx), *(height + cx));
 
         /* Get input */
-        switch (getch ()) {
+        switch (getch()) {
         case 'q':
         case 'Q':
             goto close_all;
@@ -321,48 +317,50 @@ int main (int argc, char **argv) {
         default:
             break;
         }
-    } while (1);
+    }
 
 close_all:
 close_png:
     for (cx = 0; cx < slide_count; cx++) {
-        png_destroy_read_struct ((png_ptr + cx), (info_ptr + cx), (end_info + cx));
+        png_destroy_read_struct((png_ptr + cx), (info_ptr + cx), (end_info + cx));
     }
 close_ncurses:
     /* Close ncurses */
-    curs_set (1);
-    echo ();
-    endwin ();
+    curs_set(1);
+    echo();
+    endwin();
 
-    printf ("slides: %d\n", slide_count);
+    printf("slides: %d\n", slide_count);
     if (error) {
         printf("%s\n", error);
-        if (ret) {
+        if (ret)
             printf("%s\n", strerror(ret));
-        }
     }
-    /*
-    printf ("widht: %d\n", width);
-    printf ("height: %d\n", height);
-    printf ("color type (%d), RGB (%d), RGBA (%d)\n", color_type, PNG_COLOR_TYPE_RGB, PNG_COLOR_TYPE_RGBA);
-    printf ("bit depth: %d\n", bit_depth);
-    */
 
     /* Close the image file */
 close:
     for (cx = 0; cx < slide_count; cx++) {
-        if (*(pic_file + cx)) fclose (*(pic_file + cx));
+        if (*(pic_file + cx))
+            fclose(*(pic_file + cx));
     }
-    if (pic_file) free (pic_file);
-    if (fname) free (fname);
-    if (width) free (width);
-    if (height) free (height);
+    if (pic_file)
+        free(pic_file);
+    if (fname)
+        free(fname);
+    if (width)
+        free(width);
+    if (height)
+        free(height);
 
     /* Close the framebuffer */
-    if (fb_buf) free (fb_buf);
-    if (fb) memset (fb, 0, finfo.smem_len);
-    if (fb) munmap (fb, finfo.smem_len);
-    if (fb_file) close (fb_file);
+    if (fb_buf)
+        free(fb_buf);
+    if (fb) {
+        memset(fb, 0, finfo.smem_len);
+        munmap(fb, finfo.smem_len);
+    }
+    if (fb_file)
+        close(fb_file);
 
     return ret;
 }
