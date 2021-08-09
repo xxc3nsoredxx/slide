@@ -91,8 +91,8 @@ int main (int argc, char **argv) {
     png_byte bit_depth;
     png_byte color_type;
     png_byte interlace_type;
-    uint32_t *height = 0;
     uint32_t *width = 0;
+    uint32_t *height = 0;
 
     /* Test arguments */
     if (argc != 3) {
@@ -152,14 +152,8 @@ int main (int argc, char **argv) {
 
     /* Open image files */
     fname = malloc(1001);
-    pic_file = malloc(slide_count * sizeof(*pic_file));
-    png_ptr = malloc(slide_count * sizeof(*png_ptr));
-    info_ptr = malloc(slide_count * sizeof(*info_ptr));
-    end_info = malloc(slide_count * sizeof(*end_info));
-    background = calloc(slide_count, sizeof(*background));
-    row_pointers = malloc(slide_count * sizeof(*row_pointers));
-    width = malloc(slide_count * sizeof(*width));
-    height = malloc(slide_count * sizeof(*height));
+    pic_file = calloc(slide_count, sizeof(*pic_file));
+
     for (cx = 0; cx < slide_count; cx++) {
         memset(fname, 0, 1001);
         sprintf(fname, "%s%d.png", argv[1], cx);
@@ -170,8 +164,18 @@ int main (int argc, char **argv) {
             error = OPEN_ERR_MSG;
             goto close_ncurses;
         }
+    }
 
-        /* Read the image */
+    /* Read images */
+    png_ptr = calloc(slide_count, sizeof(*png_ptr));
+    info_ptr = calloc(slide_count, sizeof(*info_ptr));
+    end_info = calloc(slide_count, sizeof(*end_info));
+    background = calloc(slide_count, sizeof(*background));
+    row_pointers = calloc(slide_count, sizeof(*row_pointers));
+    width = calloc(slide_count, sizeof(*width));
+    height = calloc(slide_count, sizeof(*height));
+
+    for (cx = 0; cx < slide_count; cx++) {
         nread = fread(png_sig, 1, 8, pic_file[cx]);
         if (png_sig_cmp(png_sig, 0, nread)) {
             error = NOT_PNG_MSG;
@@ -235,9 +239,9 @@ int main (int argc, char **argv) {
         width[cx] = png_get_image_width(png_ptr[cx], info_ptr[cx]);
 
         /* Initialize the rows */
-        row_pointers[cx] = malloc(height[cx] * sizeof(**row_pointers));
+        row_pointers[cx] = calloc(height[cx], sizeof(**row_pointers));
         for (row = 0; row < height[cx]; row++) {
-            row_pointers[cx][row] = malloc(png_get_rowbytes(png_ptr[cx], info_ptr[cx]));
+            row_pointers[cx][row] = calloc(png_get_rowbytes(png_ptr[cx], info_ptr[cx]), 1);
         }
 
         /* Read the png */
@@ -283,8 +287,19 @@ int main (int argc, char **argv) {
 close_all:
 close_png:
     for (cx = 0; cx < slide_count; cx++) {
+        if (row_pointers[cx]) {
+            for (row = 0; row < height[cx]; row++) {
+                if (row_pointers[cx][row])
+                    free(row_pointers[cx][row]);
+            }
+            free(row_pointers[cx]);
+        }
+    }
+
+    for (cx = 0; cx < slide_count; cx++) {
         png_destroy_read_struct((png_ptr + cx), (info_ptr + cx), (end_info + cx));
     }
+
 close_ncurses:
     /* Close ncurses */
     curs_set(1);
@@ -298,8 +313,22 @@ close_ncurses:
             fprintf(stderr, "%s\n", strerror(ret));
     }
 
-    /* Close the image file */
 close:
+    if (height)
+        free(height);
+    if (width)
+        free(width);
+    if (row_pointers)
+        free(row_pointers);
+    if (background)
+        free(background);
+    if (end_info)
+        free(end_info);
+    if (info_ptr)
+        free(info_ptr);
+    if (png_ptr)
+        free(png_ptr);
+
     for (cx = 0; cx < slide_count; cx++) {
         if (pic_file[cx])
             fclose(pic_file[cx]);
@@ -308,18 +337,13 @@ close:
         free(pic_file);
     if (fname)
         free(fname);
-    if (width)
-        free(width);
-    if (height)
-        free(height);
 
-    /* Close the framebuffer */
-    if (fb_buf)
-        free(fb_buf);
     if (fb) {
         memset(fb, 0, finfo.smem_len);
         munmap(fb, finfo.smem_len);
     }
+    if (fb_buf)
+        free(fb_buf);
     if (fb_file)
         close(fb_file);
 
