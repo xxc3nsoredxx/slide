@@ -26,3 +26,5 @@
 
 # Don't include test images
 *.png
+
+*.log

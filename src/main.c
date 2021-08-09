@@ -79,7 +79,7 @@ int main (int argc, char **argv) {
     int fb_file;
     int cx;
     unsigned int row;
-    char *fname = 0;
+    char fname [1001];
     FILE **pic_file = 0;
     uint8_t png_sig [8];
     ssize_t nread;
@@ -105,6 +105,8 @@ int main (int argc, char **argv) {
     }
 
     slide_count = atoi(argv[2]);
+    if (!slide_count)
+        goto close_nothing;
 
     /* Attempt to open the framebuffer */
     fb_file = open("/dev/fb0", O_RDWR);
@@ -151,7 +153,6 @@ int main (int argc, char **argv) {
     refresh();
 
     /* Open image files */
-    fname = malloc(1001);
     pic_file = calloc(slide_count, sizeof(*pic_file));
 
     for (cx = 0; cx < slide_count; cx++) {
@@ -179,12 +180,12 @@ int main (int argc, char **argv) {
         nread = fread(png_sig, 1, 8, pic_file[cx]);
         if (png_sig_cmp(png_sig, 0, nread)) {
             error = NOT_PNG_MSG;
-            goto close_ncurses;
+            goto close_png;
         }
         png_ptr[cx] = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
         if (!png_ptr[cx]) {
             error = PNG_PTR_MSG;
-            goto close_ncurses;
+            goto close_png;
         }
         info_ptr[cx] = png_create_info_struct(png_ptr[cx]);
         if (!info_ptr[cx]) {
@@ -235,8 +236,8 @@ int main (int argc, char **argv) {
         png_read_update_info(png_ptr[cx], info_ptr[cx]);
 
         /* Get the image dimensions */
-        height[cx] = png_get_image_height(png_ptr[cx], info_ptr[cx]);
         width[cx] = png_get_image_width(png_ptr[cx], info_ptr[cx]);
+        height[cx] = png_get_image_height(png_ptr[cx], info_ptr[cx]);
 
         /* Initialize the rows */
         row_pointers[cx] = calloc(height[cx], sizeof(**row_pointers));
@@ -306,13 +307,6 @@ close_ncurses:
     echo();
     endwin();
 
-    printf("slides: %d\n", slide_count);
-    if (error) {
-        fprintf(stderr, "%s\n", error);
-        if (ret)
-            fprintf(stderr, "%s\n", strerror(ret));
-    }
-
 close:
     if (height)
         free(height);
@@ -335,8 +329,6 @@ close:
     }
     if (pic_file)
         free(pic_file);
-    if (fname)
-        free(fname);
 
     if (fb) {
         memset(fb, 0, finfo.smem_len);
@@ -346,6 +338,14 @@ close:
         free(fb_buf);
     if (fb_file)
         close(fb_file);
+
+close_nothing:
+    printf("slides: %d\n", slide_count);
+    if (error) {
+        fprintf(stderr, "%s\n", error);
+        if (ret)
+            fprintf(stderr, "%s\n", strerror(ret));
+    }
 
     return ret;
 }
