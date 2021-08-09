@@ -15,8 +15,6 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
-#define ERROR(MSG) write (2, (MSG), strlen ((MSG)))
-
 const char *FB_ERR_MSG      = "Error opening framebuffer!";
 const char *VINFO_ERR_MSG   = "Error getting variable screen info.";
 const char *FINFO_ERR_MSG   = "Error getting fixed screen info.";
@@ -98,13 +96,11 @@ int main (int argc, char **argv) {
 
     /* Test arguments */
     if (argc != 3) {
-        printf("Usage: %s dir count\n", *argv);
-        printf("   dir     path where the slideshow is\n");
-        printf("           0.png, 1.png, ...\n");
-        printf("   count   number of slides\n");
+        fprintf(stderr, "Usage: %s dir count\n", *argv);
+        fprintf(stderr, "   dir     path where the slideshow is\n");
+        fprintf(stderr, "           0.png, 1.png, ...\n");
+        fprintf(stderr, "   count   number of slides\n");
         ret = EINVAL;
-        ERROR(strerror(ret));
-        ERROR("\n");
         goto close;
     }
 
@@ -114,9 +110,6 @@ int main (int argc, char **argv) {
     fb_file = open("/dev/fb0", O_RDWR);
     if (fb_file == -1) {
         ret = errno;
-        ERROR(FB_ERR_MSG);
-        ERROR(strerror(ret));
-        ERROR("\n");
         error = FB_ERR_MSG;
         goto close;
     }
@@ -124,29 +117,20 @@ int main (int argc, char **argv) {
     /* Attempt to get information about the screen */
     if (ioctl(fb_file, FBIOGET_VSCREENINFO, &info)) {
         ret = errno;
-        ERROR(VINFO_ERR_MSG);
-        ERROR(strerror(ret));
-        ERROR("\n");
         error = VINFO_ERR_MSG;
         goto close;
     }
     if (ioctl(fb_file, FBIOGET_FSCREENINFO, &finfo)) {
         ret = errno;
-        ERROR(FINFO_ERR_MSG);
-        ERROR(strerror(ret));
-        ERROR("\n");
         error = FINFO_ERR_MSG;
         goto close;
     }
 
+    fb_buf = calloc(finfo.smem_len, 1);
     /* Attempt to mmap the framebuffer */
     fb = mmap(0, finfo.smem_len, PROT_READ|PROT_WRITE, MAP_SHARED, fb_file, 0);
-    fb_buf = calloc(finfo.smem_len, 1);
     if ((long)fb == (long)MAP_FAILED || !fb_buf) {
         ret = errno;
-        ERROR(FB_MAP_ERR_MSG);
-        ERROR(strerror(ret));
-        ERROR("\n");
         error = FB_MAP_ERR_MSG;
         goto close;
     }
@@ -183,9 +167,6 @@ int main (int argc, char **argv) {
         pic_file[cx] = fopen(fname, "rb");
         if (!pic_file[cx]) {
             ret = errno;
-            ERROR(OPEN_ERR_MSG);
-            ERROR(strerror(ret));
-            ERROR("\n");
             error = OPEN_ERR_MSG;
             goto close_ncurses;
         }
@@ -193,37 +174,21 @@ int main (int argc, char **argv) {
         /* Read the image */
         nread = fread(png_sig, 1, 8, pic_file[cx]);
         if (png_sig_cmp(png_sig, 0, nread)) {
-            ret = errno;
-            ERROR(NOT_PNG_MSG);
-            ERROR(strerror(ret));
-            ERROR("\n");
             error = NOT_PNG_MSG;
             goto close_ncurses;
         }
         png_ptr[cx] = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
         if (!png_ptr[cx]) {
-            ret = errno;
-            ERROR(PNG_PTR_MSG);
-            ERROR(strerror(ret));
-            ERROR("\n");
             error = PNG_PTR_MSG;
             goto close_ncurses;
         }
         info_ptr[cx] = png_create_info_struct(png_ptr[cx]);
         if (!info_ptr[cx]) {
-            ret = errno;
-            ERROR(INFO_PTR_MSG);
-            ERROR(strerror(ret));
-            ERROR("\n");
             error = INFO_PTR_MSG;
             goto close_png;
         }
         end_info[cx] = png_create_info_struct(png_ptr[cx]);
         if (!end_info[cx]) {
-            ret = errno;
-            ERROR(INFO_PTR_MSG);
-            ERROR(strerror(ret));
-            ERROR("\n");
             error = INFO_PTR_MSG;
             goto close_png;
         }
@@ -235,10 +200,6 @@ int main (int argc, char **argv) {
 
         /* If libpng errors, it comes here */
         if (setjmp(png_jmpbuf(png_ptr[cx]))) {
-            ret = errno;
-            ERROR(LIBPNG_ERR_MSG);
-            ERROR(strerror(ret));
-            ERROR("\n");
             error = LIBPNG_ERR_MSG;
             goto close_png;
         }
@@ -332,9 +293,9 @@ close_ncurses:
 
     printf("slides: %d\n", slide_count);
     if (error) {
-        printf("%s\n", error);
+        fprintf(stderr, "%s\n", error);
         if (ret)
-            printf("%s\n", strerror(ret));
+            fprintf(stderr, "%s\n", strerror(ret));
     }
 
     /* Close the image file */
