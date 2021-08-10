@@ -75,11 +75,11 @@ void draw (png_bytep *rows, uint32_t width, uint32_t height) {
 int main (int argc, char **argv) {
     const char *error = 0;
     int ret = 0;
-    int slide_count;
+    size_t slide_count;
     int fb_file;
-    int cx;
+    size_t cx;
     unsigned int row;
-    char fname [1001];
+    char *fname;
     FILE **pic_file = 0;
     uint8_t png_sig [8];
     ssize_t nread;
@@ -104,7 +104,7 @@ int main (int argc, char **argv) {
         goto close;
     }
 
-    slide_count = atoi(argv[2]);
+    slide_count = atol(argv[2]);
     if (!slide_count)
         goto close_nothing;
 
@@ -154,11 +154,9 @@ int main (int argc, char **argv) {
 
     /* Open image files */
     pic_file = calloc(slide_count, sizeof(*pic_file));
-
+    fname = calloc(strlen(argv[1]) + strlen(argv[2]) + 6, 1);
     for (cx = 0; cx < slide_count; cx++) {
-        memset(fname, 0, 1001);
-        sprintf(fname, "%s%d.png", argv[1], cx);
-        fname[1000] = 0;
+        sprintf(fname, "%s/%lu.png", argv[1], cx);
         pic_file[cx] = fopen(fname, "rb");
         if (!pic_file[cx]) {
             ret = errno;
@@ -323,6 +321,8 @@ close:
     if (png_ptr)
         free(png_ptr);
 
+    if (fname)
+        free(fname);
     for (cx = 0; cx < slide_count; cx++) {
         if (pic_file[cx])
             fclose(pic_file[cx]);
@@ -340,7 +340,7 @@ close:
         close(fb_file);
 
 close_nothing:
-    printf("slides: %d\n", slide_count);
+    printf("slides: %lu\n", slide_count);
     if (error) {
         fprintf(stderr, "%s\n", error);
         if (ret)
